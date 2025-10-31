@@ -17,34 +17,46 @@ PowerPoint翻訳ツール - OpenAI APIを使用してPPTXファイル内のテ�
 ### uv toolでのインストール（推奨）
 
 ```bash
-uv tool install git+https://github.com/YOUR_USERNAME/pptx-slide-translator.git
+uv tool install git+https://github.com/aRaikoFunakami/pptx-slide-translator.git
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### pipでのインストール
+```bash:削除する場合
+uv tool uninstall pptx-slide-translator
+```
 
-```bash
-pip install git+https://github.com/YOUR_USERNAME/pptx-slide-translator.git
+```bash:使用方法
+# 初回起動時には時間が掛かります
+pptx-translate --help
 ```
 
 ## 設定
 
-### OpenAI API
+**OpenAIのAPIキー** もしくは **ローカルLLMサーバー** が必要です
+
+### OpenAI APIで翻訳する場合
 
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 ```
 
-### ローカル/OSSモデル（Ollama等）
+### ローカル/OSSモデル（Ollama等）で翻訳する場合
 
 ```bash
 export OPENAI_API_KEY="dummy"  # 空でない値が必要
-export OPENAI_MODEL="llama3.2"  # または任意のモデル名
+export OPENAI_MODEL="gemma3:12b"  # または任意のモデル名
 export OPENAI_BASEURL="http://localhost:11434/v1"
+
+# ollama で gemma3:12b を動作させる場合
+ollama serve &
+ollama run gemma3:12b
 ```
 
 ## 使用方法
 
 ### 基本的な使用方法
+
+初回の起動には時間が掛かります
 
 ```bash
 # 英語に翻訳（デフォルト）
@@ -61,10 +73,10 @@ pptx-translate presentation.pptx -o translated.pptx
 
 ```bash
 # 特定のOpenAIモデルを使用
-pptx-translate presentation.pptx -m gpt-4-turbo
+pptx-translate presentation.pptx -m gpt-4.1
 
 # ローカル/OSSモデルを使用
-pptx-translate presentation.pptx -m llama3.2 -u http://localhost:11434/v1
+pptx-translate presentation.pptx -m gemma3:12b -u http://localhost:11434/v1
 ```
 
 ## コマンドラインオプション
