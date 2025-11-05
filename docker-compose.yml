@@ -1,0 +1,27 @@
+services:
+  pptx-translator:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # 必須: OpenAI APIキー
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # オプション: モデル設定（デフォルト: gpt-4o-mini）
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      
+      # オプション: カスタムAPIエンドポイント（ローカルLLM用）
+      - OPENAI_BASEURL=${OPENAI_BASEURL:-}
+      
+      # オプション: 同時翻訳処理数（デフォルト: 1）
+      - MAX_CONCURRENT_TRANSLATIONS=${MAX_CONCURRENT_TRANSLATIONS:-1}
+    volumes:
+      # ログを永続化
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/queue"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,10 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+aiofiles==23.2.1
+pydantic==2.12.3
+python-pptx==1.0.2
+langchain>=1.0.3
+langchain-openai>=1.0.1
+openai>=2.6.1
+tqdm>=4.67.1

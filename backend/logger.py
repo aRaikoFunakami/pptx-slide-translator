@@ -1,0 +1,88 @@
+"""
+ログとメトリクス管理
+"""
+import json
+import os
+import logging
+from datetime import datetime
+from typing import Optional
+from pathlib import Path
+
+
+class MetricsLogger:
+    def __init__(self, log_dir: str = "/app/logs"):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(exist_ok=True)
+        
+        # アプリケーションログの設定
+        self.app_logger = logging.getLogger("app")
+        self.app_logger.setLevel(logging.INFO)
+        
+        # ファイルハンドラーの設定
+        app_handler = logging.FileHandler(self.log_dir / "app.log", encoding='utf-8')
+        app_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        app_handler.setFormatter(app_formatter)
+        self.app_logger.addHandler(app_handler)
+        
+        # メトリクスログの設定
+        self.metrics_logger = logging.getLogger("metrics")
+        self.metrics_logger.setLevel(logging.INFO)
+        
+        metrics_handler = logging.FileHandler(self.log_dir / "metrics.jsonl", encoding='utf-8')
+        metrics_formatter = logging.Formatter('%(message)s')
+        metrics_handler.setFormatter(metrics_formatter)
+        self.metrics_logger.addHandler(metrics_handler)
+    
+    def log_app(self, level: str, message: str):
+        """アプリケーションログ"""
+        if level.lower() == "info":
+            self.app_logger.info(message)
+        elif level.lower() == "error":
+            self.app_logger.error(message)
+        elif level.lower() == "warning":
+            self.app_logger.warning(message)
+        else:
+            self.app_logger.info(message)
+    
+    def log_metrics(self, 
+                   ip_address: str,
+                   filename: str,
+                   pages: int,
+                   text_count: int,
+                   target_lang: str,
+                   status: str,
+                   processing_time: Optional[float] = None,
+                   error_message: Optional[str] = None,
+                   file_size: Optional[int] = None):
+        """メトリクスログ（JSON Lines形式）"""
+        metrics_data = {
+            "timestamp": datetime.now().isoformat(),
+            "ip_address": ip_address,
+            "filename": filename,
+            "pages": pages,
+            "text_count": text_count,
+            "target_lang": target_lang,
+            "status": status,
+            "processing_time": processing_time,
+            "file_size": file_size,
+            "error_message": error_message
+        }
+        
+        self.metrics_logger.info(json.dumps(metrics_data, ensure_ascii=False))
+    
+    def log_queue_status(self, queue_size: int, processing_count: int):
+        """キューの状態ログ"""
+        queue_data = {
+            "timestamp": datetime.now().isoformat(),
+            "event_type": "queue_status",
+            "queue_size": queue_size,
+            "processing_count": processing_count
+        }
+        
+        self.metrics_logger.info(json.dumps(queue_data, ensure_ascii=False))
+
+
+# グローバルインスタンス
+metrics_logger = MetricsLogger()
