@@ -542,12 +542,12 @@
           },
           "editorMode": "code",
           "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [5m]))",
-          "queryType": "",
+          "queryType": "range",
           "refId": "A",
           "legendFormat": "トークン使用量"
         }
       ],
-      "title": "累積トークン使用量",
+      "title": "トークン使用量（5分集計）",
       "type": "timeseries"
     },
     {
@@ -635,11 +635,12 @@
           },
           "editorMode": "code",
           "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [5m]))",
-          "queryType": "",
-          "refId": "A"
+          "queryType": "range",
+          "refId": "A",
+          "legendFormat": "API使用費用"
         }
       ],
-      "title": "累積API使用費用",
+      "title": "API使用費用（5分集計）",
       "transformations": [],
       "type": "timeseries"
     },
