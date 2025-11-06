@@ -47,7 +47,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 16
       },
       "id": 1,
       "options": {
@@ -146,7 +146,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 16
       },
       "id": 2,
       "options": {
@@ -185,7 +185,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 24
       },
       "id": 3,
       "options": {
@@ -245,7 +245,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 33
       },
       "id": 4,
       "options": {
@@ -286,7 +286,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 33
       },
       "id": 5,
       "options": {
@@ -344,9 +344,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 25
+        "y": 0
       },
       "id": 6,
       "options": {
@@ -357,7 +357,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -371,7 +371,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap total_tokens [$__range])) or vector(0)",
+          "expr": "sum(rate({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [$__range])) * $__range_s or vector(0)",
           "queryType": "",
           "refId": "A"
         }
@@ -409,9 +409,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 25
+        "w": 12,
+        "x": 12,
+        "y": 0
       },
       "id": 7,
       "options": {
@@ -422,7 +422,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -436,7 +436,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap total_cost_usd [$__range])) or vector(0)",
+          "expr": "sum(rate({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [$__range])) * $__range_s or vector(0)",
           "queryType": "",
           "refId": "A"
         }
@@ -502,29 +502,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "入力トークン"
+              "options": "累積トークン数"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "blue"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "出力トークン"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "green"
+                  "fixedColor": "purple"
                 }
               }
             ]
@@ -533,9 +518,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 25
+        "w": 12,
+        "x": 0,
+        "y": 8
       },
       "id": 8,
       "options": {
@@ -556,274 +541,14 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum by (token_type) (\n  label_replace(\n    sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap input_tokens [5m]),\n    \"token_type\", \"入力トークン\", \"\", \"\"\n  )\n)",
+          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [5m]))",
           "queryType": "",
           "refId": "A",
-          "legendFormat": "入力トークン"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          },
-          "editorMode": "code",
-          "expr": "sum by (token_type) (\n  label_replace(\n    sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap output_tokens [5m]),\n    \"token_type\", \"出力トークン\", \"\", \"\"\n  )\n)",
-          "queryType": "",
-          "refId": "B",
-          "legendFormat": "出力トークン"
+          "legendFormat": "トークン使用量"
         }
       ],
-      "title": "時系列トークン使用量",
+      "title": "累積トークン使用量",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "P8E80F9AEF21F6940"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "vis": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 33
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          },
-          "editorMode": "code",
-          "expr": "sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap total_cost_usd [5m])",
-          "queryType": "",
-          "refId": "A"
-        }
-      ],
-      "title": "時系列コスト使用量",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "P8E80F9AEF21F6940"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "費用(USD)"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "総トークン数"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "入力トークン"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "出力トークン"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "処理時間(秒)"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 33
-      },
-      "id": 8,
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false,
-          "reducer": [
-            "sum"
-          ],
-          "countRows": false
-        }
-      },
-      "pluginVersion": "10.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          },
-          "editorMode": "code",
-          "expr": "{job=\"pptx-translator-metrics\"} |= `\"status\":\"completed\"` | json",
-          "queryType": "",
-          "refId": "A"
-        }
-      ],
-      "title": "トークン使用量と費用詳細",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Line": true,
-              "id": true,
-              "tsNs": true,
-              "ip_address": true,
-              "pages": false,
-              "text_count": false,
-              "target_lang": false,
-              "status": true,
-              "error_message": true,
-              "file_size": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "filename": "ファイル名",
-              "input_tokens": "入力トークン",
-              "output_tokens": "出力トークン", 
-              "total_tokens": "総トークン数",
-              "total_cost_usd": "費用(USD)",
-              "model_name": "モデル",
-              "timestamp": "実行時刻",
-              "processing_time": "処理時間(秒)"
-            }
-          }
-        }
-      ],
-      "type": "table"
     },
     {
       "datasource": {
@@ -885,9 +610,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 33
+        "w": 12,
+        "x": 12,
+        "y": 8
       },
       "id": 9,
       "options": {
@@ -909,12 +634,13 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} | json | unwrap total_cost_usd [$__range]))",
+          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [5m]))",
           "queryType": "",
           "refId": "A"
         }
       ],
       "title": "累積API使用費用",
+      "transformations": [],
       "type": "timeseries"
     },
     {

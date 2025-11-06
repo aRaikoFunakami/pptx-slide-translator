@@ -31,6 +31,20 @@ loki.source.file "app_logs" {
       component  = "backend",
     },
   ]
+  forward_to = [loki.process.app_parser.receiver]
+}
+
+// Process app logs to extract timestamp
+loki.process "app_parser" {
+  stage.regex {
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3})"
+  }
+  
+  stage.timestamp {
+    source = "timestamp"
+    format = "2006-01-02 15:04:05,000"
+  }
+  
   forward_to = [loki.write.default.receiver]
 }
 
@@ -44,6 +58,22 @@ loki.source.file "metrics_logs" {
       component  = "backend",
     },
   ]
+  forward_to = [loki.process.metrics_parser.receiver]
+}
+
+// Process metrics logs to extract timestamp from JSON
+loki.process "metrics_parser" {
+  stage.json {
+    expressions = {
+      extracted_timestamp = "timestamp",
+    }
+  }
+  
+  stage.timestamp {
+    source = "extracted_timestamp"
+    format = "2006-01-02T15:04:05.000000"
+  }
+  
   forward_to = [loki.write.default.receiver]
 }
 
