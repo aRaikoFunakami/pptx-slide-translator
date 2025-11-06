@@ -3,7 +3,7 @@ services:
     build: .
     container_name: pptx-translator
     ports:
-      - "8000:8000"
+      - "80:8000"
     environment:
       # 必須: OpenAI APIキー
       - OPENAI_API_KEY=${OPENAI_API_KEY}
