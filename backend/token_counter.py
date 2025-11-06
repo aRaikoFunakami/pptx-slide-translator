@@ -267,7 +267,7 @@ class TiktokenCountCallback(BaseCallbackHandler):
     tiktoken を使用してトークン数を計算するLangChainコールバック
     """
     
-    def __init__(self, model: str = "gpt-4o-mini") -> None:
+    def __init__(self, model: str = "gpt-4.1-mini") -> None:
         """
         Initialize the callback with the specified model
         

@@ -274,6 +274,128 @@ body {
   background: #4a5568;
 }
 
+/* 月次コストカード */
+.monthly-cost-card {
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.monthly-cost-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cost-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cost-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cost-item.highlight {
+  grid-column: 1 / -1;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #3b82f6;
+}
+
+.cost-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.cost-item.highlight .cost-label {
+  color: #1e40af;
+  font-size: 14px;
+}
+
+.cost-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.cost-item.highlight .cost-value {
+  font-size: 24px;
+  color: #1e40af;
+}
+
+/* トークン情報表示 */
+.token-info {
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.token-info h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 12px;
+}
+
+.token-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.token-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+}
+
+.token-stat.cost {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  font-weight: 700;
+}
+
+.token-label {
+  font-size: 13px;
+  color: #78716c;
+  font-weight: 600;
+}
+
+.token-stat.cost .token-label {
+  color: #92400e;
+  font-size: 14px;
+}
+
+.token-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1917;
+}
+
+.token-stat.cost .token-value {
+  font-size: 18px;
+  color: #92400e;
+}
+
 @media (max-width: 640px) {
   .container {
     margin: 10px;
@@ -286,5 +408,15 @@ body {
   
   .upload-area {
     padding: 30px 15px;
+  }
+
+  .cost-summary,
+  .token-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .cost-item.highlight,
+  .token-stat.cost {
+    grid-column: 1;
   }
 }

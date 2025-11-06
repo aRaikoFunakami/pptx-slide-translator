@@ -18,6 +18,20 @@ interface JobStatus {
   error_message?: string;
   created_at: string;
   completed_at?: string;
+  // トークン情報（completed時のみ）
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  total_cost_usd?: number;
+  model_name?: string;
+  processing_time?: number;
+}
+
+interface MonthlyCost {
+  current_month: string;
+  total_cost_usd: number;
+  total_tokens: number;
+  total_transactions: number;
 }
 
 const App: React.FC = () => {
@@ -29,9 +43,28 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [monthlyCost, setMonthlyCost] = useState<MonthlyCost | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusCheckInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // 月次コスト取得
+  const fetchMonthlyCost = useCallback(async () => {
+    try {
+      const response = await fetch('/api/cost/monthly');
+      if (response.ok) {
+        const data: MonthlyCost = await response.json();
+        setMonthlyCost(data);
+      }
+    } catch (error) {
+      console.error('月次コスト取得エラー:', error);
+    }
+  }, []);
+
+  // 初回マウント時に月次コストを取得
+  React.useEffect(() => {
+    fetchMonthlyCost();
+  }, [fetchMonthlyCost]);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     // ファイル形式チェック
@@ -298,6 +331,44 @@ const App: React.FC = () => {
           {jobStatus.status === 'completed' && (
             <div className="success">
               <p>翻訳が完了しました！ファイルをダウンロードしてください。</p>
+              
+              {/* トークン情報表示 */}
+              {jobStatus.total_tokens !== undefined && (
+                <div className="token-info">
+                  <h4>💰 翻訳コスト情報</h4>
+                  <div className="token-stats">
+                    <div className="token-stat">
+                      <span className="token-label">使用トークン数:</span>
+                      <span className="token-value">{jobStatus.total_tokens?.toLocaleString()}</span>
+                    </div>
+                    <div className="token-stat">
+                      <span className="token-label">入力トークン:</span>
+                      <span className="token-value">{jobStatus.input_tokens?.toLocaleString()}</span>
+                    </div>
+                    <div className="token-stat">
+                      <span className="token-label">出力トークン:</span>
+                      <span className="token-value">{jobStatus.output_tokens?.toLocaleString()}</span>
+                    </div>
+                    <div className="token-stat cost">
+                      <span className="token-label">翻訳費用:</span>
+                      <span className="token-value">${jobStatus.total_cost_usd?.toFixed(6)}</span>
+                    </div>
+                    {jobStatus.model_name && (
+                      <div className="token-stat">
+                        <span className="token-label">使用モデル:</span>
+                        <span className="token-value">{jobStatus.model_name}</span>
+                      </div>
+                    )}
+                    {jobStatus.processing_time && (
+                      <div className="token-stat">
+                        <span className="token-label">処理時間:</span>
+                        <span className="token-value">{jobStatus.processing_time.toFixed(1)}秒</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               <p className="status-text">
                 ダウンロード後、ファイルはサーバーから即座に削除されます。
               </p>
@@ -338,6 +409,31 @@ const App: React.FC = () => {
             ファイルは翻訳後に自動削除され、プライバシーを保護します
           </p>
         </div>
+
+        {/* 月次コスト表示 */}
+        {monthlyCost && (
+          <div className="monthly-cost-card">
+            <h3>📊 今月の翻訳コスト</h3>
+            <div className="cost-summary">
+              <div className="cost-item">
+                <span className="cost-label">対象月:</span>
+                <span className="cost-value">{monthlyCost.current_month}</span>
+              </div>
+              <div className="cost-item highlight">
+                <span className="cost-label">累計費用:</span>
+                <span className="cost-value">${monthlyCost.total_cost_usd.toFixed(6)}</span>
+              </div>
+              <div className="cost-item">
+                <span className="cost-label">累計トークン:</span>
+                <span className="cost-value">{monthlyCost.total_tokens.toLocaleString()}</span>
+              </div>
+              <div className="cost-item">
+                <span className="cost-label">翻訳回数:</span>
+                <span className="cost-value">{monthlyCost.total_transactions.toLocaleString()} 回</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!jobStatus ? (
           <>

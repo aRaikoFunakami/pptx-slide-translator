@@ -38,6 +38,13 @@ class TranslationJob(BaseModel):
     error_message: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
+    # トークン情報（翻訳完了時に設定）
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    total_cost_usd: Optional[float] = None
+    model_name: Optional[str] = None
+    processing_time: Optional[float] = None
 
 
 class TranslationRequest(BaseModel):
@@ -136,10 +143,16 @@ async def process_translation_queue():
                 
                 processing_time = time.time() - start_time
                 
-                # ジョブステータスを完了に更新
+                # ジョブステータスを完了に更新（トークン情報を含む）
                 if job_id in active_jobs:
                     active_jobs[job_id].status = "completed"
                     active_jobs[job_id].completed_at = datetime.now()
+                    active_jobs[job_id].input_tokens = token_metrics.get("input_tokens")
+                    active_jobs[job_id].output_tokens = token_metrics.get("output_tokens")
+                    active_jobs[job_id].total_tokens = token_metrics.get("total_tokens")
+                    active_jobs[job_id].total_cost_usd = token_metrics.get("total_cost_usd")
+                    active_jobs[job_id].model_name = token_metrics.get("model")
+                    active_jobs[job_id].processing_time = processing_time
                 
                 # メトリクスログ（トークン情報を含む）
                 metrics_logger.log_metrics(
@@ -350,7 +363,7 @@ async def get_job_status(job_id: str):
         # 簡易的な位置計算（実際のキューの順序は考慮せず）
         queue_position = translation_queue.qsize()
     
-    return {
+    response = {
         "job_id": job_id,
         "status": job.status,
         "filename": job.filename,
@@ -363,6 +376,19 @@ async def get_job_status(job_id: str):
         "created_at": job.created_at,
         "completed_at": job.completed_at
     }
+    
+    # 翻訳完了時はトークン情報も含める
+    if job.status == "completed":
+        response.update({
+            "input_tokens": job.input_tokens,
+            "output_tokens": job.output_tokens,
+            "total_tokens": job.total_tokens,
+            "total_cost_usd": job.total_cost_usd,
+            "model_name": job.model_name,
+            "processing_time": job.processing_time
+        })
+    
+    return response
 
 
 @app.get("/api/download/{job_id}")
@@ -447,6 +473,72 @@ async def get_queue_status():
             } for job in sorted(queued_jobs, key=lambda x: x.created_at)
         ]
     }
+
+
+@app.get("/api/cost/monthly")
+async def get_monthly_cost():
+    """今月の累積コストを取得"""
+    import json
+    from collections import defaultdict
+    
+    metrics_file = Path("/app/logs/metrics.jsonl")
+    
+    if not metrics_file.exists():
+        return {
+            "current_month": datetime.now().strftime('%Y-%m'),
+            "total_cost_usd": 0.0,
+            "total_tokens": 0,
+            "total_transactions": 0
+        }
+    
+    current_month = datetime.now().strftime('%Y-%m')
+    monthly_cost = 0.0
+    monthly_tokens = 0
+    monthly_transactions = 0
+    
+    try:
+        with open(metrics_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = json.loads(line.strip())
+                    
+                    # completedステータスのみ集計
+                    if data.get('status') != 'completed':
+                        continue
+                    
+                    # タイムスタンプをパース
+                    timestamp_str = data.get('timestamp')
+                    if not timestamp_str:
+                        continue
+                    
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    month_key = timestamp.strftime('%Y-%m')
+                    
+                    # 今月のデータのみ集計
+                    if month_key == current_month:
+                        monthly_cost += float(data.get('total_cost_usd', 0))
+                        monthly_tokens += int(data.get('total_tokens', 0))
+                        monthly_transactions += 1
+                        
+                except (json.JSONDecodeError, ValueError, KeyError):
+                    continue
+        
+        return {
+            "current_month": current_month,
+            "total_cost_usd": round(monthly_cost, 6),
+            "total_tokens": monthly_tokens,
+            "total_transactions": monthly_transactions
+        }
+        
+    except Exception as e:
+        metrics_logger.log_app("error", f"月次コスト取得エラー: {str(e)}")
+        return {
+            "current_month": current_month,
+            "total_cost_usd": 0.0,
+            "total_tokens": 0,
+            "total_transactions": 0,
+            "error": str(e)
+        }
 
 
 if __name__ == "__main__":
