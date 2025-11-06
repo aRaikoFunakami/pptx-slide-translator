@@ -752,59 +752,71 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{job=\"pptx-translator-metrics\"} |= `\"status\":\"completed\"` | json",
-          "queryType": "",
-          "refId": "A"
+          "expr": "sum by(ip_address) (sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [7d]))",
+          "queryType": "instant",
+          "refId": "A",
+          "legendFormat": "累積費用(USD)"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "sum by(ip_address) (sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [7d]))",
+          "queryType": "instant",
+          "refId": "B",
+          "legendFormat": "累積総トークン"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "sum by(ip_address) (sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap input_tokens [7d]))",
+          "queryType": "instant",
+          "refId": "C",
+          "legendFormat": "累積入力トークン"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "sum by(ip_address) (sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap output_tokens [7d]))",
+          "queryType": "instant",
+          "refId": "D",
+          "legendFormat": "累積出力トークン"
         }
       ],
       "title": "IPアドレス別累積統計（高額順）",
       "transformations": [
         {
-          "id": "groupBy",
+          "id": "joinByField",
           "options": {
-            "fields": {
-              "ip_address": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "total_cost_usd": {
-                "aggregations": [
-                  "sum"
-                ],
-                "operation": "aggregate"
-              },
-              "total_tokens": {
-                "aggregations": [
-                  "sum"
-                ],
-                "operation": "aggregate"
-              },
-              "input_tokens": {
-                "aggregations": [
-                  "sum"
-                ],
-                "operation": "aggregate"
-              },
-              "output_tokens": {
-                "aggregations": [
-                  "sum"
-                ],
-                "operation": "aggregate"
-              }
-            }
+            "byField": "ip_address",
+            "mode": "outer"
           }
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": {},
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
             "indexByName": {},
             "renameByName": {
               "ip_address": "IPアドレス",
-              "total_cost_usd (sum)": "累積費用(USD)",
-              "total_tokens (sum)": "累積総トークン",
-              "input_tokens (sum)": "累積入力トークン",
-              "output_tokens (sum)": "累積出力トークン"
+              "Value #A": "累積費用(USD)",
+              "Value #B": "累積総トークン",
+              "Value #C": "累積入力トークン",
+              "Value #D": "累積出力トークン"
             }
           }
         },
