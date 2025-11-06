@@ -1,0 +1,68 @@
+// Alloy configuration for PPTX Translator log collection
+
+// Docker container logs collection
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.write.default.receiver]
+  
+  labels = {
+    job = "docker-containers",
+  }
+}
+
+// Docker container discovery
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  
+  filter {
+    name   = "label"
+    values = ["logging=enabled"]
+  }
+}
+
+// Application log files collection
+loki.source.file "app_logs" {
+  targets = [
+    {
+      __path__   = "/var/log/app/app.log",
+      job        = "pptx-translator-app",
+      log_type   = "application",
+      component  = "backend",
+    },
+  ]
+  forward_to = [loki.write.default.receiver]
+}
+
+// Metrics log files collection (JSON Lines format)
+loki.source.file "metrics_logs" {
+  targets = [
+    {
+      __path__   = "/var/log/app/metrics.jsonl",
+      job        = "pptx-translator-metrics",
+      log_type   = "metrics",
+      component  = "backend",
+    },
+  ]
+  forward_to = [loki.write.default.receiver]
+}
+
+
+
+// Loki write configuration
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+  
+  external_labels = {
+    cluster = "pptx-translator",
+    env     = "development",
+  }
+}
+
+// Logging configuration
+logging {
+  level  = "info"
+  format = "logfmt"
+}
