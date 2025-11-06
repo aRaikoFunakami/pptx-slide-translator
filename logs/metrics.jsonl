@@ -1,8 +1,0 @@
-{"timestamp": "2025-10-31T09:00:01.882285", "ip_address": "172.18.0.1", "filename": "test_slides.pptx", "pages": 4, "text_count": 48, "target_lang": "en", "status": "completed", "processing_time": 5.103525638580322, "file_size": 9439620, "error_message": null}
-{"timestamp": "2025-10-31T09:00:01.882782", "event_type": "queue_status", "queue_size": 0, "processing_count": 0}
-{"timestamp": "2025-11-04T08:39:10.275388", "ip_address": "172.18.0.1", "filename": "20251105 ACCESS update for AE.pptx", "pages": 30, "text_count": 803, "target_lang": "en", "status": "completed", "processing_time": 11.325147867202759, "file_size": 4277976, "error_message": null}
-{"timestamp": "2025-11-04T08:39:10.275951", "event_type": "queue_status", "queue_size": 0, "processing_count": 0}
-{"timestamp": "2025-11-04T08:53:28.701738", "ip_address": "172.18.0.1", "filename": "20251105 ACCESS update for AE.pptx", "pages": 30, "text_count": 803, "target_lang": "en", "status": "completed", "processing_time": 7.139737367630005, "file_size": 4277976, "error_message": null}
-{"timestamp": "2025-11-04T08:53:28.702236", "event_type": "queue_status", "queue_size": 0, "processing_count": 0}
-{"timestamp": "2025-11-04T08:54:35.629878", "ip_address": "172.18.0.1", "filename": "20251105 ACCESS update for AE.pptx", "pages": 30, "text_count": 803, "target_lang": "en", "status": "completed", "processing_time": 7.855775833129883, "file_size": 4277976, "error_message": null}
-{"timestamp": "2025-11-04T08:54:35.630526", "event_type": "queue_status", "queue_size": 0, "processing_count": 0}
