@@ -55,7 +55,12 @@ class MetricsLogger:
                    status: str,
                    processing_time: Optional[float] = None,
                    error_message: Optional[str] = None,
-                   file_size: Optional[int] = None):
+                   file_size: Optional[int] = None,
+                   input_tokens: Optional[int] = None,
+                   output_tokens: Optional[int] = None,
+                   total_tokens: Optional[int] = None,
+                   total_cost_usd: Optional[float] = None,
+                   model_name: Optional[str] = None):
         """メトリクスログ（JSON Lines形式）"""
         metrics_data = {
             "timestamp": datetime.now().isoformat(),
@@ -67,7 +72,13 @@ class MetricsLogger:
             "status": status,
             "processing_time": processing_time,
             "file_size": file_size,
-            "error_message": error_message
+            "error_message": error_message,
+            # Token usage and cost information
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "total_cost_usd": total_cost_usd,
+            "model_name": model_name
         }
         
         self.metrics_logger.info(json.dumps(metrics_data, ensure_ascii=False))

@@ -128,7 +128,7 @@ async def process_translation_queue():
                 start_time = time.time()
                 
                 # 翻訳実行
-                pages, text_count = await translate_pptx_async(
+                pages, text_count, token_metrics = await translate_pptx_async(
                     translation_request.file_path,
                     translation_request.output_path,
                     translation_request.target_lang
@@ -141,7 +141,7 @@ async def process_translation_queue():
                     active_jobs[job_id].status = "completed"
                     active_jobs[job_id].completed_at = datetime.now()
                 
-                # メトリクスログ
+                # メトリクスログ（トークン情報を含む）
                 metrics_logger.log_metrics(
                     ip_address=translation_request.ip_address,
                     filename=translation_request.filename,
@@ -150,11 +150,17 @@ async def process_translation_queue():
                     target_lang=translation_request.target_lang,
                     status="completed",
                     processing_time=processing_time,
-                    file_size=translation_request.file_size
+                    file_size=translation_request.file_size,
+                    input_tokens=token_metrics.get("input_tokens"),
+                    output_tokens=token_metrics.get("output_tokens"),
+                    total_tokens=token_metrics.get("total_tokens"),
+                    total_cost_usd=token_metrics.get("total_cost_usd"),
+                    model_name=token_metrics.get("model")
                 )
                 
                 metrics_logger.log_app("info", 
-                    f"翻訳処理完了: {job_id}, {pages}ページ, {text_count}テキスト, {processing_time:.2f}秒")
+                    f"翻訳処理完了: {job_id}, {pages}ページ, {text_count}テキスト, {processing_time:.2f}秒, "
+                    f"トークン: {token_metrics.get('total_tokens', 0)}, 費用: ${token_metrics.get('total_cost_usd', 0.0):.4f}")
                 
             except Exception as e:
                 error_message = f"翻訳処理中にエラーが発生しました: {str(e)}"
@@ -165,7 +171,7 @@ async def process_translation_queue():
                     active_jobs[job_id].error_message = error_message
                     active_jobs[job_id].completed_at = datetime.now()
                 
-                # エラーメトリクス
+                # エラーメトリクス（トークン情報は0で記録）
                 metrics_logger.log_metrics(
                     ip_address=translation_request.ip_address,
                     filename=translation_request.filename,
@@ -174,7 +180,12 @@ async def process_translation_queue():
                     target_lang=translation_request.target_lang,
                     status="failed",
                     error_message=error_message,
-                    file_size=translation_request.file_size
+                    file_size=translation_request.file_size,
+                    input_tokens=0,
+                    output_tokens=0,
+                    total_tokens=0,
+                    total_cost_usd=0.0,
+                    model_name=None
                 )
                 
                 metrics_logger.log_app("error", f"翻訳処理エラー: {job_id}, {error_message}")

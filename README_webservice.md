@@ -5,7 +5,7 @@ PowerPointファイルを翻訳するWebサービスです。FastAPI + React + D
 ## 🌟 特徴
 
 - **簡単操作**: ドラッグ&ドロップでPPTXファイルをアップロード
-- **高品質翻訳**: OpenAI GPT-4o-miniを使用した高品質な翻訳
+- **高品質翻訳**: OpenAI GPT-4.1-miniを使用した高品質な翻訳
 - **プライバシー保護**: ファイルは翻訳後に即座に削除
 - **リアルタイム進捗**: キューの待機状況と翻訳進捗をリアルタイム表示
 - **詳細ログ**: 全ての処理ログとメトリクスを記録
@@ -64,7 +64,7 @@ http://localhost:8000
 | 変数名 | 必須 | デフォルト | 説明 |
 |--------|------|------------|------|
 | `OPENAI_API_KEY` | ✅ | - | OpenAI APIキー |
-| `OPENAI_MODEL` | ❌ | `gpt-4o-mini` | 使用する翻訳モデル |
+| `OPENAI_MODEL` | ❌ | `gpt-4.1-mini` | 使用する翻訳モデル |
 | `OPENAI_BASEURL` | ❌ | - | カスタムAPIエンドポイント（ローカルLLM用） |
 | `MAX_CONCURRENT_TRANSLATIONS` | ❌ | `1` | 同時翻訳処理数 |
 

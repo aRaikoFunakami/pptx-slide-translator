@@ -5,13 +5,15 @@ PPTXファイル翻訳ロジック
 import asyncio
 import json
 import os
-from typing import List
+from typing import List, Optional, Dict, Any, Tuple
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+
+from .token_counter import TiktokenCountCallback, estimate_translation_cost
 
 
 class TranslationItem(BaseModel):
@@ -27,18 +29,23 @@ class TranslationResult(BaseModel):
 
 def get_model_config():
     """現在の環境変数からモデル設定を取得する"""
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     baseurl = os.getenv("OPENAI_BASEURL", "")
     
     return model, baseurl
 
 
-async def translate_texts_openai_async(texts: List[str], target_lang="en") -> List[str]:
+async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Tuple[List[str], Dict[str, Any]]:
     """
     OpenAI APIでテキストリストを並列バッチ翻訳する（非同期版）
+    
+    Returns:
+        Tuple of (translated_texts, token_metrics)
+        - translated_texts: 翻訳されたテキストのリスト
+        - token_metrics: トークン数と費用情報の辞書
     """
     if not texts:
-        return []
+        return [], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
     
     # 空のテキストを除外してインデックスを記録
     non_empty_texts = []
@@ -52,17 +59,20 @@ async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Li
             text_indices.append(i)
     
     if not non_empty_texts:
-        return [""] * len(texts)
+        return [""] * len(texts), {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
 
     parser = JsonOutputParser(pydantic_object=TranslationResult)
     
     # モデル設定を動的に取得
     openai_model, openai_baseurl = get_model_config()
     
+    # トークンカウンターを初期化
+    token_counter = TiktokenCountCallback(model=openai_model)
+    
     if openai_baseurl:
-        model = ChatOpenAI(temperature=0, model=openai_model, openai_api_base=openai_baseurl)
+        model = ChatOpenAI(temperature=0, model=openai_model, openai_api_base=openai_baseurl, callbacks=[token_counter])
     else:
-        model = ChatOpenAI(temperature=0, model=openai_model)
+        model = ChatOpenAI(temperature=0, model=openai_model, callbacks=[token_counter])
 
     batch_size = 10
     all_translations = []
@@ -131,7 +141,10 @@ async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Li
         else:
             final_results[original_index] = texts[original_index]
     
-    return final_results
+    # トークン使用量とコストメトリクスを取得
+    token_metrics = token_counter.get_metrics()
+    
+    return final_results, token_metrics
 
 
 def collect_texts_from_shape(shape, texts_to_translate, text_objects):
@@ -167,9 +180,15 @@ def collect_texts_from_shape(shape, texts_to_translate, text_objects):
                     text_objects.append(run)
 
 
-async def translate_pptx_async(input_path: str, output_path: str, target_lang="en"):
+async def translate_pptx_async(input_path: str, output_path: str, target_lang="en") -> Tuple[int, int, Dict[str, Any]]:
     """
     PPTXファイルを翻訳する（非同期版・一括翻訳）
+    
+    Returns:
+        Tuple of (pages, applied_count, token_metrics)
+        - pages: ページ数
+        - applied_count: 翻訳が適用されたテキスト数
+        - token_metrics: トークン数と費用情報の辞書
     """
     prs = Presentation(input_path)
     
@@ -184,12 +203,11 @@ async def translate_pptx_async(input_path: str, output_path: str, target_lang="e
     
     if not texts_to_translate:
         prs.save(output_path)
-        return len(prs.slides), 0
-    
+        empty_metrics = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
+        return len(prs.slides), 0, empty_metrics
+
     # 一括翻訳実行
-    translated_texts = await translate_texts_openai_async(texts_to_translate, target_lang)
-    
-    # 翻訳結果を元のオブジェクトに直接適用
+    translated_texts, token_metrics = await translate_texts_openai_async(texts_to_translate, target_lang)    # 翻訳結果を元のオブジェクトに直接適用
     applied_count = 0
     for text_obj, translated_text in zip(text_objects, translated_texts):
         if translated_text.strip():
@@ -202,7 +220,7 @@ async def translate_pptx_async(input_path: str, output_path: str, target_lang="e
     # 翻訳済みPPTXを保存
     prs.save(output_path)
     
-    return len(prs.slides), applied_count
+    return len(prs.slides), applied_count, token_metrics
 
 
 def analyze_pptx(file_path: str) -> dict:

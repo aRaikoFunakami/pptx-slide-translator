@@ -8,8 +8,16 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict, Any, Tuple
 from tqdm.asyncio import tqdm
+
+# Import token counter functionality
+try:
+    from backend.token_counter import TiktokenCountCallback, estimate_translation_cost
+except ImportError:
+    # Fallback for when backend module is not available
+    TiktokenCountCallback = None
+    estimate_translation_cost = None
 
 # OPENAI_API_KEYの存在チェック
 def check_openai_api_key():
@@ -45,18 +53,18 @@ def get_model_config():
     
     return model, baseurl
 
-async def translate_texts_openai_async(texts: List[str], target_lang="en") -> List[str]:
+async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Tuple[List[str], Dict[str, Any]]:
     """
     OpenAI APIでテキストリストを並列バッチ翻訳する（非同期版）
     texts: 翻訳対象テキストのリスト
     target_lang: 'en' or 'ja'
-    戻り値: 翻訳文リスト（元textsと同じ順）
+    戻り値: Tuple of (翻訳文リスト（元textsと同じ順）, トークン使用量情報)
     
     10文字列ごとにバッチ処理し、各バッチを並列で実行します。
     進捗状況はtqdmで表示されます。
     """
     if not texts:
-        return []
+        return [], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
     
     # 空のテキストを除外してインデックスを記録
     non_empty_texts = []
@@ -70,17 +78,25 @@ async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Li
             text_indices.append(i)
     
     if not non_empty_texts:
-        return [""] * len(texts)
+        return [""] * len(texts), {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
 
     parser = JsonOutputParser(pydantic_object=TranslationResult)
     
     # モデル設定を動的に取得
     openai_model, openai_baseurl = get_model_config()
     
-    if openai_baseurl:
-        model = ChatOpenAI(temperature=0, model=openai_model, openai_api_base=openai_baseurl)
+    # トークンカウンターを初期化（利用可能な場合のみ）
+    token_counter = None
+    if TiktokenCountCallback is not None:
+        token_counter = TiktokenCountCallback(model=openai_model)
+        callbacks = [token_counter]
     else:
-        model = ChatOpenAI(temperature=0, model=openai_model)
+        callbacks = []
+    
+    if openai_baseurl:
+        model = ChatOpenAI(temperature=0, model=openai_model, openai_api_base=openai_baseurl, callbacks=callbacks)
+    else:
+        model = ChatOpenAI(temperature=0, model=openai_model, callbacks=callbacks)
 
     batch_size = 10
     all_translations = []
@@ -161,21 +177,29 @@ async def translate_texts_openai_async(texts: List[str], target_lang="en") -> Li
         else:
             final_results[original_index] = texts[original_index]
     
-    return final_results
+    # トークン使用量とコストメトリクスを取得
+    if token_counter is not None:
+        token_metrics = token_counter.get_metrics()
+    else:
+        # Fallback when token counter is not available
+        token_metrics = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
+    
+    return final_results, token_metrics
 
-def translate_text(src_text: str, target_lang="en") -> str:
+def translate_text(src_text: str, target_lang="en") -> Tuple[str, Dict[str, Any]]:
     """
     単一のテキストを翻訳する同期関数
+    戻り値: (翻訳されたテキスト, トークン使用量情報)
     """
     if not src_text.strip():
-        return src_text
+        return src_text, {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "total_cost_usd": 0.0}
     
     # 非同期関数を同期実行
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        result = loop.run_until_complete(translate_texts_openai_async([src_text], target_lang))
-        return result[0] if result else src_text
+        result, token_metrics = loop.run_until_complete(translate_texts_openai_async([src_text], target_lang))
+        return result[0] if result else src_text, token_metrics
     finally:
         loop.close()
 
@@ -237,7 +261,7 @@ async def translate_pptx_async(input_path: str, output_path: str, target_lang="e
     
     # 一括翻訳実行
     print("翻訳を実行中...")
-    translated_texts = await translate_texts_openai_async(texts_to_translate, target_lang)
+    translated_texts, token_metrics = await translate_texts_openai_async(texts_to_translate, target_lang)
     
     # 翻訳結果を元のオブジェクトに直接適用
     print("翻訳結果を適用中...")
@@ -251,6 +275,14 @@ async def translate_pptx_async(input_path: str, output_path: str, target_lang="e
                 print(f"翻訳結果の適用でエラー: {e}")
     
     print(f"{applied_count}/{len(text_objects)} 件のテキストを翻訳しました")
+    
+    # トークン使用量とコスト情報を表示
+    if token_metrics and token_metrics.get("total_tokens", 0) > 0:
+        print(f"トークン使用量: {token_metrics.get('total_tokens', 0)} tokens")
+        print(f"  - 入力: {token_metrics.get('input_tokens', 0)} tokens")
+        print(f"  - 出力: {token_metrics.get('output_tokens', 0)} tokens")
+        print(f"推定費用: ${token_metrics.get('total_cost_usd', 0.0):.4f} USD")
+        print(f"使用モデル: {token_metrics.get('model', 'unknown')}")
     
     # 翻訳済みPPTXを保存
     print(f"翻訳済みファイルを保存中: {output_path}")

@@ -8,8 +8,8 @@ services:
       # 必須: OpenAI APIキー
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       
-      # オプション: モデル設定（デフォルト: gpt-4o-mini）
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      # オプション: モデル設定（デフォルト: gpt-4.1-mini）
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
       
       # オプション: カスタムAPIエンドポイント（ローカルLLM用）
       - OPENAI_BASEURL=${OPENAI_BASEURL:-}
