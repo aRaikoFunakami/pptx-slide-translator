@@ -31,10 +31,15 @@ cd pptx-slide-translator
 cp .env.example .env
 ```
 
-`.env`ファイルを編集してOpenAI APIキーを設定：
+`.env`ファイルを編集して必要な情報を設定：
 
 ```env
+# OpenAI APIキー（必須）
 OPENAI_API_KEY=your-openai-api-key-here
+
+# Grafana管理者認証情報（推奨: 本番環境では変更）
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=your-secure-password-here
 ```
 
 ### 3. サービスを起動
@@ -45,9 +50,10 @@ docker-compose up -d
 
 ### 4. Webブラウザでアクセス
 
-```
-http://localhost:8000
-```
+- **翻訳サービス**: http://localhost/
+- **Grafanaダッシュボード**: http://localhost:3000/
+  - ユーザー名: `.env`の`GRAFANA_ADMIN_USER`（デフォルト: `admin`）
+  - パスワード: `.env`の`GRAFANA_ADMIN_PASSWORD`
 
 ## 📋 使用方法
 
@@ -67,6 +73,8 @@ http://localhost:8000
 | `OPENAI_MODEL` | ❌ | `gpt-4.1-mini` | 使用する翻訳モデル |
 | `OPENAI_BASEURL` | ❌ | - | カスタムAPIエンドポイント（ローカルLLM用） |
 | `MAX_CONCURRENT_TRANSLATIONS` | ❌ | `1` | 同時翻訳処理数 |
+| `GRAFANA_ADMIN_USER` | ❌ | `admin` | Grafana管理者ユーザー名 |
+| `GRAFANA_ADMIN_PASSWORD` | ❌ | `pptx_translator_2025` | Grafana管理者パスワード |
 
 ### ローカルLLMを使用する場合
 
@@ -79,6 +87,26 @@ OPENAI_BASEURL=http://localhost:11434/v1
 ```
 
 ## 📊 ログとメトリクス
+
+### Grafanaダッシュボード
+
+Grafanaで翻訳メトリクスを可視化できます：
+
+- **URL**: <http://localhost:3000/>
+- **ログイン情報**: `.env`ファイルで設定した認証情報
+  - デフォルトユーザー名: `admin`
+  - デフォルトパスワード: `pptx_translator_2025`（本番環境では必ず変更してください）
+
+**ダッシュボードの内容**:
+- 総トークン使用量・総コスト（選択期間）
+- トークン使用量・API使用費用の時系列グラフ（5分集計）
+- IPアドレス別累積統計（高額順）
+
+**セキュリティのヒント**: 本番環境では`.env`で強力なパスワードを設定してください：
+
+```env
+GRAFANA_ADMIN_PASSWORD=your-very-secure-password-123
+```
 
 ### ログファイル
 
@@ -94,6 +122,9 @@ OPENAI_BASEURL=http://localhost:11434/v1
 - ページ数・テキスト数
 - 翻訳言語
 - 処理時間
+- トークン使用量（入力・出力・合計）
+- コスト（USD）
+- モデル名
 - 成功/失敗状況
 - エラー詳細（失敗時）
 
