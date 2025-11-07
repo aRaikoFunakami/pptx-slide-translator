@@ -371,8 +371,8 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(rate({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [$__range])) * $__range_s or vector(0)",
-          "queryType": "",
+          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_tokens [$__range])) or vector(0)",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -436,8 +436,8 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(rate({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [$__range])) * $__range_s or vector(0)",
-          "queryType": "",
+          "expr": "sum(sum_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" | json | unwrap total_cost_usd [$__range])) or vector(0)",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -855,7 +855,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "PPTX Translator Dashboard",
-  "uid": "pptx-translator-main",
+  "uid": "pptx-translator-main-v2",
   "version": 1,
   "weekStart": ""
 }
