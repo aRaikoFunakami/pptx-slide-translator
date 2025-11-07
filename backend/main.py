@@ -45,6 +45,10 @@ class TranslationJob(BaseModel):
     total_cost_usd: Optional[float] = None
     model_name: Optional[str] = None
     processing_time: Optional[float] = None
+    # ファイルパス情報（自動削除用）
+    temp_dir: Optional[str] = None
+    input_path: Optional[str] = None
+    output_path: Optional[str] = None
 
 
 class TranslationRequest(BaseModel):
@@ -85,6 +89,7 @@ active_jobs: dict = {}
 processing_count = 0
 MAX_CONCURRENT_TRANSLATIONS = int(os.getenv("MAX_CONCURRENT_TRANSLATIONS", "1"))
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+cleanup_tasks: dict = {}  # job_id -> asyncio.Task のマッピング
 
 # OpenAI APIキーのチェック
 if not os.getenv("OPENAI_API_KEY"):
@@ -99,13 +104,77 @@ def get_client_ip(request: Request) -> str:
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     
-    # X-Real-IPヘッダーをチェック
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    
     # 直接接続の場合
     return request.client.host if request.client else "unknown"
+
+
+async def schedule_delayed_cleanup(job_id: str, delay_seconds: int = 600):
+    """
+    指定時間後にジョブの一時ファイルを削除する
+    
+    Args:
+        job_id: ジョブID
+        delay_seconds: 遅延秒数（デフォルト: 600秒 = 10分）
+    """
+    await asyncio.sleep(delay_seconds)
+    
+    if job_id not in active_jobs:
+        return
+    
+    job = active_jobs[job_id]
+    
+    if not job.temp_dir or not os.path.exists(job.temp_dir):
+        metrics_logger.log_app("warning", f"自動削除: 一時ディレクトリが存在しません: {job_id}")
+        return
+    
+    try:
+        import shutil
+        shutil.rmtree(job.temp_dir)
+        metrics_logger.log_app("info", f"自動削除完了（未ダウンロード）: {job_id}, {job.filename}")
+        
+        # ジョブ情報も削除
+        if job_id in active_jobs:
+            del active_jobs[job_id]
+        if job_id in cleanup_tasks:
+            del cleanup_tasks[job_id]
+            
+    except Exception as e:
+        metrics_logger.log_app("error", f"自動削除エラー: {job_id}, {str(e)}")
+
+
+def cancel_cleanup_task(job_id: str):
+    """遅延削除タスクをキャンセル"""
+    if job_id in cleanup_tasks:
+        task = cleanup_tasks[job_id]
+        if not task.done():
+            task.cancel()
+        del cleanup_tasks[job_id]
+        metrics_logger.log_app("info", f"自動削除タスクをキャンセル: {job_id}")
+
+
+async def immediate_cleanup(job_id: str, reason: str = "ダウンロード後"):
+    """ジョブの一時ファイルを即座に削除"""
+    if job_id not in active_jobs:
+        return
+    
+    job = active_jobs[job_id]
+    
+    if not job.temp_dir or not os.path.exists(job.temp_dir):
+        return
+    
+    try:
+        import shutil
+        shutil.rmtree(job.temp_dir)
+        metrics_logger.log_app("info", f"ファイルクリーンアップ完了（{reason}）: {job_id}, {job.filename}")
+        
+        # ジョブ情報も削除
+        if job_id in active_jobs:
+            del active_jobs[job_id]
+        if job_id in cleanup_tasks:
+            del cleanup_tasks[job_id]
+            
+    except Exception as e:
+        metrics_logger.log_app("error", f"クリーンアップエラー: {job_id}, {str(e)}")
 
 
 async def process_translation_queue():
@@ -175,6 +244,12 @@ async def process_translation_queue():
                     f"翻訳処理完了: {job_id}, {pages}ページ, {text_count}テキスト, {processing_time:.2f}秒, "
                     f"トークン: {token_metrics.get('total_tokens', 0)}, 費用: ${token_metrics.get('total_cost_usd', 0.0):.4f}")
                 
+                # 10分後の自動削除をスケジュール
+                if job_id in active_jobs and active_jobs[job_id].temp_dir:
+                    task = asyncio.create_task(schedule_delayed_cleanup(job_id, delay_seconds=600))
+                    cleanup_tasks[job_id] = task
+                    metrics_logger.log_app("info", f"10分後の自動削除をスケジュール: {job_id}")
+                
             except Exception as e:
                 error_message = f"翻訳処理中にエラーが発生しました: {str(e)}"
                 
@@ -203,12 +278,8 @@ async def process_translation_queue():
                 
                 metrics_logger.log_app("error", f"翻訳処理エラー: {job_id}, {error_message}")
                 
-                # 一時ファイルをクリーンアップ
-                try:
-                    if os.path.exists(translation_request.file_path):
-                        os.remove(translation_request.file_path)
-                except:
-                    pass
+                # 失敗時は即座にクリーンアップ
+                await immediate_cleanup(job_id, reason="翻訳失敗")
                 
             finally:
                 processing_count -= 1
@@ -295,7 +366,10 @@ async def upload_file(
             status="queued",
             pages=analysis["pages"],
             text_count=analysis["text_count"],
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            temp_dir=temp_dir,
+            input_path=input_path,
+            output_path=output_path
         )
         
         active_jobs[job_id] = job
@@ -405,18 +479,8 @@ async def download_result(job_id: str, request: Request):
     if job.status != "completed":
         raise HTTPException(status_code=400, detail="翻訳がまだ完了していません")
     
-    # 出力ファイルパスを推定
-    temp_dir = tempfile.gettempdir()
-    output_path = None
-    
-    # temp_dirから該当するファイルを検索
-    for temp_subdir in os.listdir(temp_dir):
-        potential_path = os.path.join(temp_dir, temp_subdir, f"output_{job_id}.pptx")
-        if os.path.exists(potential_path):
-            output_path = potential_path
-            break
-    
-    if not output_path or not os.path.exists(output_path):
+    # ジョブに保存されたパスを使用
+    if not job.output_path or not os.path.exists(job.output_path):
         raise HTTPException(status_code=404, detail="翻訳済みファイルが見つかりません")
     
     # ファイル名を生成
@@ -426,32 +490,55 @@ async def download_result(job_id: str, request: Request):
     
     metrics_logger.log_app("info", f"ファイルダウンロード: {client_ip}, {job.filename}, {download_filename}")
     
-    def cleanup_files():
-        """ファイル送信後のクリーンアップ"""
-        try:
-            # 入力ファイルと出力ファイルを削除
-            temp_subdir = os.path.dirname(output_path)
-            if os.path.exists(temp_subdir):
-                import shutil
-                shutil.rmtree(temp_subdir)
-            
-            # ジョブ情報も削除
-            if job_id in active_jobs:
-                del active_jobs[job_id]
-                
-            metrics_logger.log_app("info", f"ファイルクリーンアップ完了: {job_id}")
-        except Exception as e:
-            metrics_logger.log_app("error", f"クリーンアップエラー: {job_id}, {str(e)}")
+    # 遅延削除タスクをキャンセル
+    cancel_cleanup_task(job_id)
     
-    # ファイル送信後にクリーンアップを実行
-    import threading
-    threading.Timer(1.0, cleanup_files).start()
+    # ダウンロード後に即座にクリーンアップ
+    async def cleanup_after_download():
+        await asyncio.sleep(1.0)  # ファイル送信完了を待つ
+        await immediate_cleanup(job_id)
+    
+    asyncio.create_task(cleanup_after_download())
     
     return FileResponse(
-        output_path,
+        job.output_path,
         filename=download_filename,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation"
     )
+
+
+@app.post("/api/cancel/{job_id}")
+async def cancel_job(job_id: str, request: Request):
+    """ジョブをキャンセル"""
+    
+    client_ip = get_client_ip(request)
+    
+    if job_id not in active_jobs:
+        raise HTTPException(status_code=404, detail="ジョブが見つかりません")
+    
+    job = active_jobs[job_id]
+    
+    # 完了済みまたは失敗済みのジョブはキャンセルできない
+    if job.status in ["completed", "failed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"ステータスが{job.status}のジョブはキャンセルできません"
+        )
+    
+    # ジョブをキャンセル状態に
+    job.status = "failed"
+    job.error_message = "ユーザーによってキャンセルされました"
+    job.completed_at = datetime.now().isoformat()
+    
+    # 遅延削除タスクをキャンセル
+    cancel_cleanup_task(job_id)
+    
+    # 即座にクリーンアップ
+    await immediate_cleanup(job_id, reason="キャンセル")
+    
+    metrics_logger.log_app("info", f"ジョブキャンセル: {client_ip}, {job.filename}, {job_id}")
+    
+    return {"message": "ジョブがキャンセルされました", "job_id": job_id}
 
 
 @app.get("/api/queue")

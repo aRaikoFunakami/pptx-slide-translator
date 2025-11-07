@@ -60,4 +60,18 @@ export const translationApi = {
 
     return response.json();
   },
+
+  /**
+   * ジョブをキャンセル
+   */
+  cancelJob: async (jobId: string): Promise<void> => {
+    const response = await fetch(`/api/cancel/${jobId}`, {
+      method: 'POST',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'キャンセルに失敗しました');
+    }
+  },
 };

@@ -40,12 +40,12 @@ const App: React.FC = () => {
         pages: result.pages,
         textCount: result.text_count,
       });
+      // 成功時はisUploadingをfalseに戻さない（画面が切り替わるまでボタンを無効化）
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'アップロードエラーが発生しました'
       );
-    } finally {
-      setIsUploading(false);
+      setIsUploading(false); // エラー時のみリセット
     }
   }, [file, targetLang, setError]);
 
@@ -55,6 +55,7 @@ const App: React.FC = () => {
     setFileInfo(null);
     setJobId(null);
     setError(null);
+    setIsUploading(false); // アップロード状態もリセット
   }, [resetFile, setError]);
 
   // ダウンロード処理
@@ -86,6 +87,21 @@ const App: React.FC = () => {
       setError('ダウンロードエラーが発生しました');
     }
   }, [jobId, jobStatus, fetchMonthlyCost, handleReset, setError]);
+
+  // キャンセル処理
+  const handleCancel = useCallback(async () => {
+    if (!jobId) return;
+
+    try {
+      await translationApi.cancelJob(jobId);
+      // キャンセル後にリセット
+      handleReset();
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : 'キャンセルに失敗しました'
+      );
+    }
+  }, [jobId, handleReset, setError]);
 
   // ドラッグ&ドロップハンドラー
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -162,7 +178,7 @@ const App: React.FC = () => {
             {file && (
               <div className="warning">
                 ⚠️
-                アップロードしたファイルは翻訳完了後に即座にサーバーから削除されます
+                翻訳完了後、ダウンロード時に即座に削除されます。未ダウンロードの場合は10分後に自動削除されます
               </div>
             )}
 
@@ -188,6 +204,7 @@ const App: React.FC = () => {
             jobStatus={jobStatus}
             onDownload={handleDownload}
             onReset={handleReset}
+            onCancel={handleCancel}
           />
         )}
       </div>

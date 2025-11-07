@@ -5,12 +5,14 @@ interface JobStatusDisplayProps {
   jobStatus: JobStatus;
   onDownload: () => void;
   onReset: () => void;
+  onCancel: () => void;
 }
 
 export const JobStatusDisplay: React.FC<JobStatusDisplayProps> = ({
   jobStatus,
   onDownload,
   onReset,
+  onCancel,
 }) => {
   const getStatusText = () => {
     switch (jobStatus.status) {
@@ -134,9 +136,16 @@ export const JobStatusDisplay: React.FC<JobStatusDisplayProps> = ({
         )}
       </div>
 
-      <button className="button reset-button" onClick={onReset}>
-        新しいファイルを翻訳する
-      </button>
+      {/* キューまたは処理中の場合はキャンセルボタン */}
+      {jobStatus.status === 'queued' || jobStatus.status === 'processing' ? (
+        <button className="button reset-button" onClick={onCancel}>
+          キャンセル
+        </button>
+      ) : jobStatus.status === 'failed' ? (
+        <button className="button reset-button" onClick={onReset}>
+          新しいファイルを翻訳する
+        </button>
+      ) : null}
     </div>
   );
 };
