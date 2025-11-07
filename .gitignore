@@ -13,3 +13,5 @@ wheels/
 private_samples/
 
 logs/
+
+*.backup
