@@ -124,6 +124,10 @@ const App: React.FC = () => {
               clearInterval(statusCheckInterval.current);
               statusCheckInterval.current = null;
             }
+            // 翻訳完了時に月次コストを更新
+            if (status.status === 'completed') {
+              await fetchMonthlyCost();
+            }
           }
         }
       } catch (error) {
@@ -136,7 +140,7 @@ const App: React.FC = () => {
     
     // 定期実行
     statusCheckInterval.current = setInterval(checkStatus, 2000);
-  }, []);
+  }, [fetchMonthlyCost]);
 
   const handleUpload = useCallback(async () => {
     if (!file) return;
@@ -178,6 +182,23 @@ const App: React.FC = () => {
     }
   }, [file, targetLang, startStatusCheck]);
 
+  const handleReset = useCallback(() => {
+    setFile(null);
+    setFileInfo(null);
+    setJobId(null);
+    setJobStatus(null);
+    setError(null);
+    
+    if (statusCheckInterval.current) {
+      clearInterval(statusCheckInterval.current);
+      statusCheckInterval.current = null;
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
   const handleDownload = useCallback(async () => {
     if (!jobId || !jobStatus || jobStatus.status !== 'completed') return;
 
@@ -202,29 +223,15 @@ const App: React.FC = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
+      // 月次コストを再取得
+      await fetchMonthlyCost();
+
       // ダウンロード後にリセット
       handleReset();
     } catch (error) {
       setError('ダウンロードエラーが発生しました');
     }
-  }, [jobId, jobStatus]);
-
-  const handleReset = useCallback(() => {
-    setFile(null);
-    setFileInfo(null);
-    setJobId(null);
-    setJobStatus(null);
-    setError(null);
-    
-    if (statusCheckInterval.current) {
-      clearInterval(statusCheckInterval.current);
-      statusCheckInterval.current = null;
-    }
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, []);
+  }, [jobId, jobStatus, fetchMonthlyCost, handleReset]);
 
   const renderUploadArea = () => (
     <div
