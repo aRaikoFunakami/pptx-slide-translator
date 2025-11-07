@@ -269,7 +269,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"pptx-translator-app\"} |= \"翻訳処理完了\" [$__range]))",
+          "expr": "count_over_time({job=\"pptx-translator-metrics\"} |= \"completed\" [$__range])",
           "queryType": "",
           "refId": "A"
         }
