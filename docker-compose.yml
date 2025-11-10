@@ -1,6 +1,11 @@
 services:
   pptx-translator:
-    build: .
+    build:
+      context: .
+      args:
+        - REACT_APP_NOTICE_ENABLED=${REACT_APP_NOTICE_ENABLED:-false}
+        - REACT_APP_NOTICE_HTML=${REACT_APP_NOTICE_HTML:-notice.html}
+        - REACT_APP_NOTICE_FREQUENCY_DAYS=${REACT_APP_NOTICE_FREQUENCY_DAYS:-1}
     container_name: pptx-translator
     ports:
       - "80:8000"

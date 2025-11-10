@@ -86,6 +86,35 @@ OPENAI_MODEL=gemma3:12b
 OPENAI_BASEURL=http://localhost:11434/v1
 ```
 
+### フロントエンド通知ダイアログ
+
+Web UI で運用上の注意や一時的な告知を表示するモーダルダイアログを設定できます。
+
+| 変数 | 説明 | デフォルト |
+|------|------|-----------|
+| `REACT_APP_NOTICE_ENABLED` | 通知ダイアログ機能を有効化 | `false` |
+| `REACT_APP_NOTICE_HTML` | 表示するHTMLファイルのパス（`frontend/public/static/` からの相対パス） | `static/notice.html` |
+| `REACT_APP_NOTICE_FREQUENCY_DAYS` | 再表示までの日数（整数） | `1` |
+
+設定例（`.env`）:
+
+```env
+REACT_APP_NOTICE_ENABLED=true
+REACT_APP_NOTICE_HTML=static/notice.html
+REACT_APP_NOTICE_FREQUENCY_DAYS=1
+```
+
+**動作仕様**:
+1. ページ初回ロード時に `REACT_APP_NOTICE_ENABLED=true` なら指定HTMLを取得
+2. ローカルストレージ `notice_last_shown` に保存された最終表示日と比較
+3. 指定日数以上経過していれば再表示
+4. HTMLは信頼済み静的ファイルとしてそのまま描画（`frontend/public/static/notice.html` を配置）
+
+**注意事項**:
+- セキュリティ上、任意ユーザー投稿のHTMLは指定しないでください
+- HTML更新後に即時反映させたい場合はコンテナの再ビルドが必要です
+- 表示頻度は日単位（ブラウザローカル時刻基準）
+
 ## 📊 ログとメトリクス
 
 ### Grafanaダッシュボード

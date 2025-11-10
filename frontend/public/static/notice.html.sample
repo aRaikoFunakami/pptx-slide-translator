@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>お知らせ</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin:0; padding:0; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    p { margin: 0 0 12px; }
+    ul { margin: 0 0 12px 20px; padding:0; }
+    li { margin-bottom:4px; }
+    .highlight { background:#fff7cc; padding:4px 6px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <h1>サービス利用上の重要なご案内</h1>
+  <p class="highlight">本サービスは試験運用モードです。以下の点をご確認ください。</p>
+  <ul>
+    <li>アップロードされたファイルは翻訳完了後のダウンロード、または 10 分経過後に自動削除されます。</li>
+    <li>重要情報を含む資料の取り扱いには十分ご注意ください。</li>
+    <li>システム更新に伴い予告なく停止する場合があります。</li>
+  </ul>
+  <p>詳しい仕様や制限事項については社内 Wiki を参照してください。</p>
+</body>
+</html>

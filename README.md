@@ -107,6 +107,8 @@ options:
 - `OPENAI_MODEL`: 使用するモデル名（デフォルト: gpt-4.1-mini）
 - `OPENAI_BASEURL`: APIのベースURL（OpenAI互換API使用時）
 
+**Note**: Webサービス版の環境変数設定については [README_webservice.md](README_webservice.md) を参照してください。
+
 ## 対応するOpenAI互換API
 
 - OpenAI API
