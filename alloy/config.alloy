@@ -34,17 +34,30 @@ loki.source.file "app_logs" {
   forward_to = [loki.process.app_parser.receiver]
 }
 
-// Process app logs to extract timestamp
+// Process app logs to extract timestamp (ISO8601 UTC: 2025-11-10T01:51:40.644Z)
+// REQUIREMENTS:
+//  * Each application log line MUST start with an ISO8601 UTC timestamp of the form
+//    YYYY-MM-DDTHH:MM:SS.mmmZ followed by a space (example: 2025-11-10T01:51:40.644Z - ...)
+//  * Milliseconds precision only (3 digits). If microseconds needed later, update both regex & format.
+//  * No leading/trailing spaces before timestamp; otherwise regex won't match and timestamp will be missing.
+//  * If a line does NOT match, it will be ingested without a parsed timestamp (Loki assigns ingestion time).
+//  * Keep clock synchronized (UTC) to avoid future timestamps which Loki will reject.
 loki.process "app_parser" {
+  // 新フォーマット例: 2025-11-10T01:51:40.644Z - app - INFO - メッセージ
+  // Precision: milliseconds (3 digits). For microseconds, change 
+  //   regex:  \.\d{6}Z
+  //   format: 2006-01-02T15:04:05.000000Z
+  // NOTE: If lines were historically in "YYYY-MM-DD HH:MM:SS,mmm" format, convert them
+  // before ingestion or Loki will treat them as out-of-order and may reject older samples.
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3})"
+    expression = "^(?P<ts_iso>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z)"
   }
-  
+
   stage.timestamp {
-    source = "timestamp"
-    format = "2006-01-02 15:04:05,000"
+    source = "ts_iso"
+    format = "2006-01-02T15:04:05.000Z" // Goレイアウト: .000 はミリ秒3桁
   }
-  
+
   forward_to = [loki.write.default.receiver]
 }
 
@@ -62,18 +75,39 @@ loki.source.file "metrics_logs" {
 }
 
 // Process metrics logs to extract timestamp from JSON
+// REQUIREMENTS:
+//  * File is JSON Lines (one complete JSON object per line). No embedded newlines inside values.
+//  * `timestamp` field MUST be ISO8601 UTC with microseconds: YYYY-MM-DDTHH:MM:SS.microsecZ
+//    Example: 2025-11-10T02:15:27.123456Z
+//  * Legacy lines without trailing Z are normalized by appending 'Z'.
+//  * If precision changes (e.g., to milliseconds), adjust regex & timestamp format accordingly.
+//  * Avoid future timestamps; Loki rejects too-new or too-old samples per its configuration.
 loki.process "metrics_parser" {
+  // JSONの timestamp は logger 変更後 "YYYY-MM-DDTHH:MM:SS.microsecZ" 形式 (末尾Z) に統一。
+  // 例: 2025-11-10T02:15:27.123456Z
   stage.json {
     expressions = {
       extracted_timestamp = "timestamp",
     }
   }
-  
-  stage.timestamp {
-    source = "extracted_timestamp"
-    format = "2006-01-02T15:04:05.000000"
+
+  // 旧行 (Zなし) と新行 (Zあり) の両対応をするため2段階: regexで末尾Z有無を正規化。
+  // If timestamp missing or unparsable, Loki falls back to ingestion time → may skew historical cost metrics.
+  stage.regex {
+    expression = "^(?P<ts_core>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6})(?P<z>Z)?$"
+    source     = "extracted_timestamp"
   }
-  
+
+  stage.template {
+    source   = "normalized_ts"
+    template = "{{ .ts_core }}Z"
+  }
+
+  stage.timestamp {
+    source = "normalized_ts"
+    format = "2006-01-02T15:04:05.000000Z"
+  }
+
   forward_to = [loki.write.default.receiver]
 }
 
@@ -93,6 +127,7 @@ loki.write "default" {
 
 // Logging configuration
 logging {
-  level  = "info"
+  // 調査用に一時的に debug へ引き上げ（後で info に戻す）
+  level  = "debug"
   format = "logfmt"
 }

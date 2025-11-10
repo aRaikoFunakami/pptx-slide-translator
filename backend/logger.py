@@ -4,7 +4,8 @@
 import json
 import os
 import logging
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import Optional
 from pathlib import Path
 
@@ -20,9 +21,17 @@ class MetricsLogger:
         
         # ファイルハンドラーの設定
         app_handler = logging.FileHandler(self.log_dir / "app.log", encoding='utf-8')
-        app_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        # ISO8601 UTC (Z) 形式へ統一。例: 2025-11-10T01:51:40.644Z
+        # logging の %(asctime)s はミリ秒3桁までしか扱わないため、Formatter を拡張し converter= time.gmtime を利用。
+        # ミリ秒精度: %(msecs)d を組み合わせてフォーマット再構成。
+        class ISO8601UTCFormatter(logging.Formatter):
+            converter = time.gmtime
+            def formatTime(self, record, datefmt=None):
+                # record.created は epoch 秒(float)。UTC に変換しミリ秒3桁を付与。
+                dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+                return dt.strftime('%Y-%m-%dT%H:%M:%S') + f'.{int(record.msecs):03d}Z'
+
+        app_formatter = ISO8601UTCFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         app_handler.setFormatter(app_formatter)
         self.app_logger.addHandler(app_handler)
         
@@ -63,7 +72,7 @@ class MetricsLogger:
                    model_name: Optional[str] = None):
         """メトリクスログ（JSON Lines形式）"""
         metrics_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             "ip_address": ip_address,
             "filename": filename,
             "pages": pages,
@@ -86,7 +95,7 @@ class MetricsLogger:
     def log_queue_status(self, queue_size: int, processing_count: int):
         """キューの状態ログ"""
         queue_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             "event_type": "queue_status",
             "queue_size": queue_size,
             "processing_count": processing_count
